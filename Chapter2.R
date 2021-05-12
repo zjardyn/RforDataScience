@@ -21,3 +21,26 @@ y <- seq(1, 10, length.out = 5)
 y
 # equivalent
 (y <- seq(1, 10, length.out = 5))
+
+# Exercises 1 ----
+my_variable <- 10
+my_varıable
+
+# fix
+library(tidyverse)
+
+ggplot(dota = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy))
+
+fliter(mpg, cyl = 8)
+filter(diamond, carat > 3)
+
+#fixed 
+
+ggplot(data = mpg) + 
+  geom_point(mapping = aes(x = displ, y = hwy))
+
+filter(mpg, cyl = 8)
+filter(diamonds, carat > 3)
+
+# press alt shift K
