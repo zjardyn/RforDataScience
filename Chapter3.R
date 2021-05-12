@@ -12,17 +12,13 @@ flights
 
 # select all flights on January 1st
 filter(flights, month == 1, day == 1)
-
 # assign it 
 jan1 <- filter(flights, month == 1, day == 1)
-
 # R either prints results or saves them as a variable, this does both
 (dec25 <- filter(flights, month == 12, day == 25))
-
 # comparisons
 filter(flights, month = 1)
-
-# dbl doesn't equal int
+# dbl (float) doesn't equal int
 sqrt(2) ^ 2 == 2
 1 / 49 * 49 == 1
 
@@ -38,7 +34,6 @@ nov_dec <- filter(flights, month %in% c(11, 12))
 
 
 # De Morgan's Law: !(x & y) is the same as !x | !y, and !(x | y) is the same as !x & !y.
-
 filter(flights, !(arr_delay > 120 | dep_delay > 120))
 filter(flights, arr_delay <= 120, dep_delay <= 120)
 
@@ -56,28 +51,27 @@ y <- NA
 
 # therefore we don't know if their ages are equal!
 x == y
-
 is.na(x)
 
 df <- tibble(x = c(1, NA, 3))
-
 filter(df, x > 1)
 filter(df, is.na(x) | x > 1)
 
 # Exercises 1 ----
 # flights
 colnames(flights)
+
 filter(flights, arr_delay >= 2)
 filter(flights, dest %in% c("IAH", "HOU"))
 unique(flights$carrier)
 filter(flights, carrier %in% c("UA", "AA", "DL"))
 filter(flights, month %in% 7:9)
 # De morgan's law
-(x <- filter(flights, arr_delay > 2 & dep_delay < 0))
-(y <- filter(flights, !(arr_delay <= 2 | dep_delay >= 0)))
+(x <- filter(flights, arr_delay >= 120 & dep_delay <= 0))
+(y <- filter(flights, !(arr_delay < 120 | dep_delay > 0)))
 all.equal(x, y)
 # checks out!
-filter(flights, dep_delay >= 1 & sched_arr_time - arr_time >30)
+filter(flights, dep_delay >= 60, dep_delay > arr_delay + 30)
 flights$dep_time
 filter(flights, dep_time %in% 0:600)
 
@@ -101,8 +95,162 @@ TRUE & NA
 NA * 0
 
 # ----
-
+# sort rows with arrange
 arrange(flights, year, month, day)
 arrange(flights, desc(dep_delay))
 
 df <- tibble(x = c(5, 2, NA))
+# missing values at the end
+arrange(df, x)
+arrange(df, desc(x))
+
+# Exercises 2 ----
+arrange(df, desc(is.na(x)))
+colnames(flights)
+arrange(flights, desc(dep_delay))
+arrange(flights, dep_delay)
+# v = d/t
+arrange(flights, desc(distance/air_time))
+arrange(flights, desc(distance))
+arrange(flights, distance)
+
+# ----
+# select columns
+colnames(flights)
+select(flights, year, month, day)
+# slice
+select(flights, year:day)
+# everything but
+select(flights, -(year:day))
+
+# helper funcs
+
+# starts_with
+# ends_with
+# contains
+# matches
+# num_range
+
+# renaming
+rename(flights, tail_num = tailnum)
+
+# select a few first, then the rest
+select(flights, time_hour, air_time, everything())
+
+# Exercises 3 ----
+select(flights, dep_time, dep_delay, arr_time, arr_delay)
+select(flights, starts_with('dep'), starts_with('arr'))
+
+select(flights, dep_time, dep_time)
+
+vars <- c("year", "month", "day", "dep_delay", "arr_delay")
+select(flights, any_of(vars))
+
+select(flights, contains("TIME"))
+?contains
+select(flights, contains("TIME", ignore.case = F))
+
+# ----
+# add new vars with mutate
+flights_sml <- select(flights, 
+                      year:day, 
+                      ends_with("delay"), 
+                      distance, 
+                      air_time
+)
+
+flights_new <- mutate(flights_sml,
+                      gain = dep_delay - arr_delay,
+                      speed = distance / air_time * 60
+)
+
+View(flights_new)
+
+mutate(flights_sml,
+       gain = dep_delay - arr_delay,
+       hours = air_time / 60,
+       gain_per_hour = gain / hours
+)
+
+transmute(flights,
+          gain = dep_delay - arr_delay,
+          hours = air_time / 60,
+          gain_per_hour = gain / hours
+)
+
+# must be vectorized: input is vector, output is vector of same length
+# arithmetic operators: +, -, *, /, ^, are vectorized as they use "recycling"
+
+# modular arithmetic: %/% (integer division) and %% (remainder)
+transmute(flights,
+          dep_time,
+          hour = dep_time %/% 100,
+          minute = dep_time %% 100)
+
+# logs: log(), log2(), log10(), transforming across magnitudes. log2 is most interpretable
+
+# offsetting 
+(x <- 1:10)
+lag(x)
+lead(x)
+
+# Cumulative and rolling aggregates:cumsum(), cumprod(), cummin(), cummax(), dplyr::cummean()
+
+x
+cumsum(x)
+cummean(x)
+
+y <- c(1, 2, 2, NA, 3, 4)
+min_rank(y)
+min_rank(desc(y))
+
+# also try row_number(), dense_rank(), percent_rank(), cume_dist(), ntile()
+y
+row_number(y)
+dense_rank(y)
+percent_rank(y)
+cume_dist(y)
+
+# Exercises 4 ----
+flights_new <- select(flights,
+                      dep_time,
+                      sched_dep_time,
+                      air_time,
+                      arr_time,
+                      dep_delay)
+
+flights_new <- mutate(flights_new,
+          dep_min_midn = (dep_time %/% 100) * 60 + dep_time %% 100,
+          sched_dep_min_midn = (sched_dep_time %/% 100) * 60 + sched_dep_time %% 100)
+
+transmute(flights_new, 
+          air_time,
+          air_time2 = arr_time - dep_time)
+
+flights_new <- mutate(flights_new,
+          arr_min_midn = (arr_time %/% 100) * 60 + arr_time %% 100,
+          )
+
+flights_new <- mutate(flights_new, 
+                      flight_time = arr_min_midn - dep_min_midn)
+
+select(flights_new, air_time, flight_time)
+
+sum(flights_new$air_time == flights_new$flight_time, na.rm = TRUE)
+
+# clock format, difference is in dep_delay
+select(flights_new, dep_time, sched_dep_time, dep_delay)
+
+# min_rank() is equivalent to rank() method with the argument ties.method = 'min'
+head(arrange(flights_new, min_rank(desc(dep_delay))), 10)
+?min_rank
+
+# recycling
+1:3 + 1:10
+
+?sin
+
+# ----
+
+# group with summarise, collapse down to a single row
+
