@@ -43,4 +43,4 @@ ggplot(data = mpg) +
 filter(mpg, cyl = 8)
 filter(diamonds, carat > 3)
 
-# press alt shift K
+# press alt shift k
