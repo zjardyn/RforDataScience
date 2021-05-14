@@ -253,4 +253,6 @@ head(arrange(flights_new, min_rank(desc(dep_delay))), 10)
 # ----
 
 # group with summarise, collapse down to a single row
+summarise(flights, delay = mean(dep_delay, na.rm = T))
 
+# pair it with group by
