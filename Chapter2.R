@@ -32,7 +32,7 @@ library(tidyverse)
 ggplot(dota = mpg) + 
   geom_point(mapping = aes(x = displ, y = hwy))
 
-fliter(mpg, cyl = 8)
+filter(mpg, cyl = 8)
 filter(diamond, carat > 3)
 
 #fixed 
