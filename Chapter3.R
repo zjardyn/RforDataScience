@@ -679,7 +679,7 @@ standardized_flights %>%
 flights %>%
   # find all airports with > 1 carrier
   group_by(dest) %>%
-  mutate(n_carriers = n_distinct(carrier)) %>%
+  mutate( n_carriers = n_distinct(carrier)) %>%
   filter(n_carriers > 1) %>%
   # rank carriers by numer of destinations
   group_by(carrier) %>%
