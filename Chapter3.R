@@ -1,3 +1,5 @@
+# answers to exercises: https://jrnold.github.io/r4ds-exercise-solutions/transform.html#exercise-5.6.1
+
 # install.packages("nycflights13")
 library(nycflights13)
 library(tidyverse)
@@ -504,13 +506,14 @@ flights %>%
 
 flights %>%
   count(dest, sort = TRUE)
-
+# ----
 # grouped mutates
+# worst members
 flights_sml %>% 
   group_by(year, month, day) %>%
   filter(rank(desc(arr_delay)) < 10)
 
-# theshold
+# threshold
 popular_dests <- flights %>% 
   group_by(dest) %>% 
   filter(n() > 365)
@@ -521,4 +524,178 @@ popular_dests %>%
   mutate(prop_delay = arr_delay / sum(arr_delay)) %>% 
   select(year:day, dest, arr_delay, prop_delay)
 
+# Exercises 6
 
+# summary funcs: mean(), lead(), lag(), min_rank(), row_number(), in combination with group_by( ) in a mutate or filter
+
+a_tibble <- tibble(x = 1:9,
+       group = rep(c("a", "b", "c"), each = 3)) 
+
+a_tibble %>%
+  mutate(x_mean = mean(x)) %>%
+  group_by(group) %>%
+  mutate(x_mean_2 = mean(x))
+
+# operators not affected by group_by()
+
+a_tibble %>%
+  mutate(y = x + 2) %>%
+  group_by(group) %>%
+  mutate(z = x + 2)
+
+a_tibble %>%
+  mutate(y = x %% 2) %>%
+  group_by(group) %>%
+  mutate(z = x %% 2)
+
+a_tibble %>%
+  mutate(y = log(x)) %>%
+  group_by(group) %>%
+  mutate(z = log(x))
+
+a_tibble %>%
+  mutate(x_lte_y = x <= y) %>%
+  group_by(group) %>%
+  mutate(x_lte_y_2 = x <= y)
+
+tibble(x = runif(9),
+       group = rep(c("a", "b", "c"), each = 3)) %>%
+  group_by(group) %>%
+  arrange(x)
+  
+
+# are affected 
+a_tibble %>%
+  group_by(group) %>%
+  mutate(lag_x = lag(x),
+         lead_x = lead(x))
+
+a_tibble %>%
+  mutate(x_cumsum = cumsum(x)) %>%
+  group_by(group) %>%
+  mutate(x_cumsum_2 = cumsum(x))
+
+a_tibble %>% 
+  mutate(rnk = min_rank(x)) %>%
+  group_by(group) %>%
+  mutate(rnk2 = min_rank(x))
+
+tibble(group = rep(c("a", "b", "c"), each = 3), 
+       x = runif(9)) %>%
+  group_by(group) %>%
+  arrange(x) %>%
+  mutate(lag_x = lag(x))
+
+# worst on-time record
+flights %>%
+  filter(!is.na(tailnum)) %>%
+  mutate(on_time = !is.na(arr_time) & (arr_delay <= 0)) %>%
+  group_by(tailnum) %>%
+  summarise(on_time = mean(on_time), n = n()) %>%
+  filter(min_rank(on_time) == 1)
+
+quantile(count(flights, tailnum)$n)
+
+
+flights %>%
+  filter(!is.na(tailnum), is.na(arr_time) | !is.na(arr_delay)) %>%
+  mutate(on_time = !is.na(arr_time) & (arr_delay <= 0)) %>%
+  group_by(tailnum) %>%
+  summarise(on_time = mean(on_time), n = n()) %>%
+  filter(n >= 20) %>%
+  filter(min_rank(on_time) == 1)
+
+flights %>%
+  filter(!is.na(arr_delay)) %>%
+  group_by(tailnum) %>%
+  summarise(arr_delay = mean(arr_delay), n = n()) %>%
+  filter(n >= 20) %>%
+  filter(min_rank(desc(arr_delay)) == 1)
+
+# best hour to fly
+flights %>%
+  group_by(hour) %>%
+  summarise(arr_delay = mean(arr_delay, na.rm = TRUE)) %>%
+  arrange(arr_delay)
+
+flights %>%
+  filter(arr_delay > 0) %>%
+  group_by(dest) %>%
+  mutate(
+    arr_delay_total = sum(arr_delay),
+    arr_delay_prop = arr_delay / arr_delay_total
+  ) %>%
+  select(dest, month, day, dep_time, carrier, flight,
+         arr_delay, arr_delay_prop) %>%
+  arrange(dest, desc(arr_delay_prop))
+# lag 
+lagged_delays <- flights %>%
+  arrange(origin, month, day, dep_time) %>%
+  group_by(origin) %>%
+  mutate(dep_delay_lag = lag(dep_delay)) %>%
+  filter(!is.na(dep_delay), !is.na(dep_delay_lag))
+
+lagged_delays %>%
+  group_by(dep_delay_lag) %>%
+  summarise(dep_delay_mean = mean(dep_delay)) %>%
+  ggplot(aes(y = dep_delay_mean, x = dep_delay_lag)) +
+  geom_point() +
+  scale_x_continuous(breaks = seq(0, 1500, by = 120)) +
+  labs(y = "Departure Delay", x = "Previous Departure Delay")
+
+lagged_delays %>%
+  group_by(origin, dep_delay_lag) %>%
+  summarise(dep_delay_mean = mean(dep_delay)) %>%
+  ggplot(aes(y = dep_delay_mean, x = dep_delay_lag)) +
+  geom_point() +
+  facet_wrap(~ origin, ncol=1) +
+  labs(y = "Departure Delay", x = "Previous Departure Delay")
+
+# suspicious flights 
+standardized_flights <- flights %>%
+  filter(!is.na(air_time)) %>%
+  group_by(dest, origin) %>%
+  mutate(
+    air_time_mean = mean(air_time),
+    air_time_sd = sd(air_time),
+    n = n()
+  ) %>%
+  ungroup() %>%
+  mutate(air_time_standard = (air_time - air_time_mean) / (air_time_sd + 1))
+
+ggplot(standardized_flights, aes(x = air_time_standard)) +
+  geom_density()
+
+standardized_flights %>%
+  arrange(air_time_standard) %>%
+  select(
+    carrier, flight, origin, dest, month, day,
+    air_time, air_time_mean, air_time_standard
+  ) %>%
+  head(10) %>%
+  print(width = Inf)
+
+# ranking carriers
+flights %>%
+  # find all airports with > 1 carrier
+  group_by(dest) %>%
+  mutate(n_carriers = n_distinct(carrier)) %>%
+  filter(n_carriers > 1) %>%
+  # rank carriers by numer of destinations
+  group_by(carrier) %>%
+  summarize(n_dest = n_distinct(dest)) %>%
+  arrange(desc(n_dest))
+filter(airlines, carrier == "EV")
+filter(airlines, carrier %in% c("AS", "F9", "HA"))
+# For each plane, count the number of flights before the first delay of greater than 1 hour.
+flights %>%
+  # sort in increasing order
+  select(tailnum, year, month,day, dep_delay) %>%
+  filter(!is.na(dep_delay)) %>%
+  arrange(tailnum, year, month, day) %>%
+  group_by(tailnum) %>%
+  # cumulative number of flights delayed over one hour
+  mutate(cumulative_hr_delays = cumsum(dep_delay > 60)) %>%
+  # count the number of flights == 0
+  summarise(total_flights = sum(cumulative_hr_delays < 1)) %>%
+  arrange(total_flights)
